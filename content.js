@@ -116,12 +116,20 @@
         ? changes[STORAGE_KEY].newValue
         : [];
       rebuildSet();
-      // Un-hide everything first, then re-scan, so unblocking takes effect live.
+      // Blocklist changed: re-arm the circuit breaker and re-evaluate every
+      // card. nativeAttempted intentionally PERSISTS across the page session so
+      // blocking one channel never re-fires native feedback for channels we've
+      // already signalled (that was a source of redundant menu-driving).
+      nativeCircuitOpen = false;
       for (const el of document.querySelectorAll("[data-ydr-hidden]")) {
         el.style.display = "";
         el.removeAttribute("data-ydr-hidden");
         el.__ydrQueued = false;
-        el.__ydrSeen = false;
+        el.__ydrDone = false;
+      }
+      // Also clear the done-marker on still-visible cards so unblock re-checks.
+      for (const el of document.querySelectorAll(CARD_SELECTOR)) {
+        el.__ydrDone = false;
       }
       scanAndHide();
     }
@@ -173,6 +181,15 @@
     return blockNames.has(normalizeName(name));
   }
 
+  // A stable per-channel string used to fire native feedback at most once per
+  // channel (prevents the refetch cascade that native feedback would otherwise
+  // trigger — one "Don't recommend" makes YouTube refill recs with more of the
+  // same channel, which must NOT trigger another "Don't recommend").
+  function channelIdentity(card) {
+    const { key, name } = cardChannel(card);
+    return key || (name ? "name:" + normalizeName(name) : null);
+  }
+
   // What we actually collapse. Hide the grid wrapper when present so the layout
   // doesn't leave an empty cell; otherwise the card itself.
   function hideTarget(card) {
@@ -189,15 +206,24 @@
     if (!blockSet.size && !blockNames.size) return;
     const cards = root.querySelectorAll(CARD_SELECTOR);
     for (const card of cards) {
-      if (card.__ydrSeen && card.hasAttribute("data-ydr-hidden")) continue;
+      if (card.__ydrDone) continue;
       if (!cardIsBlocked(card)) continue;
-      card.__ydrSeen = true;
+      const ident = channelIdentity(card);
+      card.__ydrDone = true; // never touch this card again in later scans
 
-      // In native mode, drive YouTube's own menu first (the card must stay
-      // visible to open its menu), then let YouTube — or our fallback — remove
-      // it. Otherwise just hide it outright.
-      if (settings.nativeFeedback && hasDrivableMenu(card)) {
-        queueNativeFeedback(card);
+      // Fire YouTube's native feedback at most ONCE per channel (the first card
+      // we see keeps its menu driven; every other card — including ones YouTube
+      // refetches afterwards — is just hidden locally). This is what prevents
+      // the feedback→refetch→feedback refresh loop.
+      if (
+        settings.nativeFeedback &&
+        ident &&
+        !nativeAttempted.has(ident) &&
+        !nativeCircuitOpen &&
+        hasDrivableMenu(card)
+      ) {
+        nativeAttempted.add(ident);
+        queueNativeFeedback(card); // drives the menu, then hides the card
       } else {
         hideContainer(hideTarget(card));
       }
@@ -210,6 +236,27 @@
 
   const feedbackQueue = [];
   let feedbackBusy = false;
+
+  // Channels we've already fired native feedback for this page-session.
+  let nativeAttempted = new Set();
+  // Circuit breaker: if native feedback somehow fires too often, disable it for
+  // the rest of the page so a runaway loop can never lock up the tab.
+  let nativeCircuitOpen = false;
+  const nativeDriveTimes = [];
+  function recordNativeDrive() {
+    const now = Date.now();
+    nativeDriveTimes.push(now);
+    while (nativeDriveTimes.length && now - nativeDriveTimes[0] > 15000) {
+      nativeDriveTimes.shift();
+    }
+    if (nativeDriveTimes.length > 12) {
+      nativeCircuitOpen = true;
+      feedbackQueue.length = 0;
+      console.warn(
+        "[Don't Recommend] Native feedback paused for this page (too many actions in a short time)."
+      );
+    }
+  }
 
   const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -229,8 +276,10 @@
     feedbackBusy = true;
     try {
       while (feedbackQueue.length) {
+        if (nativeCircuitOpen) break;
         const container = feedbackQueue.shift();
         if (!container.isConnected) continue;
+        recordNativeDrive();
         let ok = false;
         try {
           ok = await driveDontRecommend(container);
@@ -239,7 +288,7 @@
         }
         // If YouTube didn't remove it (item missing / already gone), hide it.
         if (container.isConnected) hideContainer(hideTarget(container));
-        if (ok) await delay(120); // small gap between menu drives
+        if (ok) await delay(250); // gap between menu drives
       }
     } finally {
       feedbackBusy = false;
