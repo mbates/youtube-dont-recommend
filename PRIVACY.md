@@ -34,4 +34,4 @@ sees nor receives any of it. You can disable this feature in the extension popup
 
 ## Contact
 
-Questions: `<your-contact-email>`
+Questions: `mike@bates-solutions.com`
