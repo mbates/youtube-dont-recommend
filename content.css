@@ -1,0 +1,82 @@
+/* Watch-page "Don't recommend" pill button */
+.ydr-block-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 16px;
+  margin-left: 8px;
+  border: none;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--yt-spec-text-primary, #f1f1f1);
+  font-family: "Roboto", "Arial", sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 36px;
+  cursor: pointer;
+  white-space: nowrap;
+  vertical-align: middle;
+  transition: background 0.15s ease;
+}
+
+/* Light theme fallback */
+html:not([dark]) .ydr-block-btn {
+  background: rgba(0, 0, 0, 0.05);
+  color: #0f0f0f;
+}
+
+.ydr-block-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+html:not([dark]) .ydr-block-btn:hover {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.ydr-block-btn.ydr-blocked {
+  background: #cc0000;
+  color: #fff;
+}
+.ydr-block-btn.ydr-blocked:hover {
+  background: #a80000;
+}
+
+.ydr-block-btn .ydr-ico {
+  font-size: 15px;
+  line-height: 1;
+}
+
+/* While we drive YouTube's own 3-dot menu to fire native "Don't recommend
+   channel", keep its transient popup invisible and non-interactive so the
+   user never sees menus flashing. Programmatic .click() still works. */
+html[data-ydr-driving] ytd-popup-container tp-yt-iron-dropdown,
+html[data-ydr-driving] ytd-popup-container yt-sheet-view-model,
+html[data-ydr-driving] ytd-popup-container ytd-menu-popup-renderer,
+html[data-ydr-driving] tp-yt-iron-overlay-backdrop {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Toast */
+#ydr-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 32px;
+  transform: translateX(-50%) translateY(20px);
+  z-index: 100000;
+  max-width: 90vw;
+  padding: 12px 20px;
+  border-radius: 8px;
+  background: #212121;
+  color: #fff;
+  font-family: "Roboto", "Arial", sans-serif;
+  font-size: 14px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+#ydr-toast.ydr-show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}

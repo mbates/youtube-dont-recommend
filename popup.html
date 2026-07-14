@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Blocked channels</h1>
+      <span id="count" class="count">0</span>
+    </header>
+
+    <div id="empty" class="empty" hidden>
+      No channels blocked yet.<br />
+      Open a video and hit <strong>🚫 Don't recommend</strong> next to Subscribe.
+    </div>
+
+    <ul id="list"></ul>
+
+    <section class="settings">
+      <label class="row">
+        <input id="native" type="checkbox" />
+        <span>
+          <strong>Also tell YouTube</strong>
+          <small
+            >Fire YouTube's native "Don't recommend channel" so its algorithm
+            learns too.</small
+          >
+        </span>
+      </label>
+      <div class="row">
+        <span>
+          <strong>Shortcut</strong>
+          <small>Block the current channel while watching.</small>
+        </span>
+        <button id="shortcut" class="shortcut-btn" type="button">Shift+B</button>
+      </div>
+    </section>
+
+    <footer>
+      <button id="export" class="link-btn">Export</button>
+      <button id="import" class="link-btn">Import</button>
+      <button id="clear" class="link-btn danger">Clear all</button>
+      <input id="import-file" type="file" accept="application/json" hidden />
+    </footer>
+  </body>
+  <script src="popup.js"></script>
+</html>

@@ -1,0 +1,9 @@
+# Build artifacts (the packaged zip is regenerated from source)
+dist/
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.log
+.vscode/
+.idea/
